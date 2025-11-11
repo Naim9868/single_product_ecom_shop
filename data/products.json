@@ -1,0 +1,59 @@
+{
+  "products": [
+    {
+      "name": "naydfgdfdhfgh",
+      "price": 4,
+      "description": "chchvnb,nvbghcghchvmbv mbv mvhgh",
+      "features": [],
+      "sizes": [
+        "M",
+        "L",
+        "XL",
+        "2XL"
+      ],
+      "images": [
+        ""
+      ],
+      "id": "1762874998206",
+      "createdAt": "2025-11-11T15:29:58.206Z"
+    },
+    {
+      "name": "hjlgghg",
+      "price": 7,
+      "description": "jfdcghvhb",
+      "features": [],
+      "sizes": [
+        "M",
+        "L",
+        "XL",
+        "2XL"
+      ],
+      "images": [
+        ""
+      ],
+      "id": "1762874772063",
+      "createdAt": "2025-11-11T15:26:12.063Z"
+    },
+    {
+      "id": "1",
+      "name": "Premium Full Sleeve T-Shirts - 3 Pcs Package",
+      "price": 990,
+      "description": "Summer Collection - Imported Chine Mash Fabric",
+      "features": [
+        "Comfortable and premium fabric",
+        "Casual style perfect for summer",
+        "Available in multiple sizes"
+      ],
+      "sizes": [
+        "M",
+        "L",
+        "XL",
+        "2XL"
+      ],
+      "images": [
+        ""
+      ],
+      "createdAt": "2025-11-11T15:04:15.290Z"
+    }
+  ]
+}
