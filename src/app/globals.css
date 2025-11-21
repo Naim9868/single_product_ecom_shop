@@ -108,7 +108,7 @@ body {
 
 .order-form {
   background: white;
-  padding: 30px;
+  padding: 5px;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
@@ -162,7 +162,6 @@ body {
 
 .order-summary {
   background: #f9f9f9;
-  padding: 20px;
   border-radius: 8px;
   margin-top: 20px;
 }
@@ -203,6 +202,7 @@ body {
 .admin-panel {
   min-height: 100vh;
   background: #f5f5f5;
+  color: gray;
 }
 
 .admin-header {
@@ -286,6 +286,7 @@ body {
 /* Dashboard Styles */
 .dashboard {
   padding: 20px;
+  color: gray;
 }
 
 .stats-grid {
@@ -297,6 +298,7 @@ body {
 
 .stat-card {
   background: white;
+  color: gray;
   padding: 30px 20px;
   border-radius: 8px;
   text-align: center;

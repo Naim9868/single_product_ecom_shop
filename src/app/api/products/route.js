@@ -1,114 +1,106 @@
-// app/api/products/route.js
-import fs from 'fs';
-import path from 'path';
+import { NextResponse } from 'next/server';
+import connectDB from '@/lib/mongodb';
+import Product from '@/models/Product';
 
-// Sample products data
-const sampleProducts = {
-  products: [
-    {
-      id: "1",
-      name: "Premium Full Sleeve T-Shirts - 3 Pcs Package",
-      price: 990,
-      description: "Summer Collection - Imported Chine Mash Fabric",
-      features: [
-        "Comfortable and premium fabric",
-        "Casual style perfect for summer",
-        "Available in multiple sizes"
-      ],
-      sizes: ["M", "L", "XL", "2XL"],
-      images: [""],
-      createdAt: new Date().toISOString()
-    }
-  ]
-};
-
-function ensureProductsFile() {
-  const dataDir = path.join(process.cwd(), 'data');
-  const productsPath = path.join(dataDir, 'products.json');
-  
-  // Create data directory if it doesn't exist
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
-  
-  // Create products.json with sample data if it doesn't exist or is empty
-  if (!fs.existsSync(productsPath)) {
-    fs.writeFileSync(productsPath, JSON.stringify(sampleProducts, null, 2));
-    console.log('Created products.json with sample data');
-    return sampleProducts;
-  }
-  
-  // Read existing file
+// GET - Get all products
+export async function GET(request) {
   try {
-    const fileData = fs.readFileSync(productsPath, 'utf8');
-    const parsedData = JSON.parse(fileData);
+    await connectDB();
     
-    // If products array is empty, repopulate with sample data
-    if (!parsedData.products || parsedData.products.length === 0) {
-      console.log('Products array is empty, repopulating with sample data');
-      fs.writeFileSync(productsPath, JSON.stringify(sampleProducts, null, 2));
-      return sampleProducts;
-    }
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page')) || 1;
+    const limit = parseInt(searchParams.get('limit')) || 10;
     
-    return parsedData;
+    const products = await Product.find({})
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip((page - 1) * limit);
+    
+    const total = await Product.countDocuments();
+    
+    return NextResponse.json({
+      products,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total
+    });
   } catch (error) {
-    console.error('Error reading products file, using sample data:', error);
-    // If file is corrupted, rewrite it
-    fs.writeFileSync(productsPath, JSON.stringify(sampleProducts, null, 2));
-    return sampleProducts;
+    console.error('Error fetching products:', error);
+    return NextResponse.json(
+      { message: 'Error fetching products', error: error.message },
+      { status: 500 }
+    );
   }
 }
 
-export async function GET() {
-  try {
-    console.log('📦 Fetching products...');
-    
-    // Ensure we have valid products data
-    const productsData = ensureProductsFile();
-    
-    console.log('✅ Products loaded:', productsData.products.length);
-    
-    return Response.json(productsData);
-    
-  } catch (error) {
-    console.error('❌ Error in products API:', error);
-    // Always return sample data as fallback
-    return Response.json(sampleProducts);
-  }
-}
-
+// POST - Create new product
 export async function POST(request) {
   try {
-    const newProduct = await request.json();
-    const dataDir = path.join(process.cwd(), 'data');
-    const productsPath = path.join(dataDir, 'products.json');
+    await connectDB();
     
-    // Read existing products or use sample
-    let productsData = ensureProductsFile();
-    
-    // Add new product
-    const productWithId = {
-      ...newProduct,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString()
-    };
-    
-    productsData.products.unshift(productWithId);
-    
-    // Save back to file
-    fs.writeFileSync(productsPath, JSON.stringify(productsData, null, 2));
-    
-    return Response.json({ 
-      success: true, 
-      message: 'Product added successfully',
-      product: productWithId 
-    });
-    
+    const productData = await request.json();
+    // console.log(productData);
+    // Validate required fields
+    if (!productData.name || !productData.price || !productData.description) {
+      return NextResponse.json(
+        { message: 'Name, price, and description are required' },
+        { status: 400 }
+      );
+    }
+
+    const product = new Product(productData);
+    await product.save();
+
+    return NextResponse.json(
+      { message: 'Product created successfully', product },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('Error creating product:', error);
-    return Response.json({ 
-      success: false, 
-      message: 'Failed to create product' 
-    }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Error creating product', error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT - Update product
+export async function PUT(request) {
+  try {
+    await connectDB();
+    const requestBody = await request.json();
+    // console.log('PUT Request Body:', JSON.stringify(requestBody, null, 2));
+    const { id, ...updateData } = requestBody;
+    
+    if (!id) {
+      return NextResponse.json(
+        { message: 'Product ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const product = await Product.findByIdAndUpdate(
+      id,
+      { ...updateData, updatedAt: new Date() },
+      { new: true, runValidators: true }
+    );
+
+    if (!product) {
+      return NextResponse.json(
+        { message: 'Product not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      message: 'Product updated successfully',
+      product
+    });
+  } catch (error) {
+    console.error('Error updating product:', error);
+    return NextResponse.json(
+      { message: 'Error updating product', error: error.message },
+      { status: 500 }
+    );
   }
 }

@@ -1,106 +1,277 @@
 // app/api/orders/route.js
-import { storage } from '../../../lib/storage';
 import { NextResponse } from 'next/server';
-
-// Store active connections for real-time notifications
-let clients = [];
+import connectDB from '@/lib/mongodb';
+import Order from '@/models/Order';
+import { pusherServer } from '@/lib/pusher';
 
 export async function GET(request) {
-  const headers = request.headers.get('accept');
-  
-  if (headers === 'text/event-stream') {
-    // SSE for real-time notifications
-    const encoder = new TextEncoder();
+  try {
+    await connectDB();
     
-    const customStream = new ReadableStream({
-      start(controller) {
-        const clientId = Date.now();
-        const newClient = {
-          id: clientId,
-          controller
-        };
-        clients.push(newClient);
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
+    const page = parseInt(searchParams.get('page')) || 1;
+    const limit = Math.min(parseInt(searchParams.get('limit')) || 50, 100);
+    const sortBy = searchParams.get('sortBy') || 'createdAt';
+    
+    const allowedSortFields = ['createdAt', 'name', 'totalCost', 'status'];
+    const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
 
-        // Send initial connection message
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'CONNECTED' })}\n\n`));
+    let query = {};
+    if (status && status !== 'all') {
+      const allowedStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+      if (allowedStatuses.includes(status)) {
+        query.status = status;
+      }
+    }
 
-        // Remove client when connection closes
-        request.signal.addEventListener('abort', () => {
-          clients = clients.filter(client => client.id !== clientId);
-        });
+    const orders = await Order.find(query)
+      .sort({ [safeSortBy]: -1 })
+      .limit(limit)
+      .skip((page - 1) * limit)
+      .select('-__v')
+      .lean();
+
+    const total = await Order.countDocuments(query);
+
+    return NextResponse.json({
+      success: true,
+      orders,
+      pagination: {
+        totalPages: Math.ceil(total / limit),
+        currentPage: page,
+        total,
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1
       }
     });
-
-    return new Response(customStream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    return NextResponse.json(
+      { 
+        success: false,
+        message: 'Error fetching orders'
       },
-    });
-  } else {
-    // Regular GET request
-    try {
-      const orders = storage.read('orders');
-      return Response.json(orders);
-    } catch (error) {
-      return Response.json({ error: 'Failed to fetch orders' }, { status: 500 });
-    }
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request) {
   try {
-    const newOrder = await request.json();
-    const orderWithMetadata = {
-      ...newOrder,
-      status: 'pending',
-      orderId: `TSHIRT-${Date.now()}`,
-      createdAt: new Date().toISOString()
+    await connectDB();
+    
+    const orderData = await request.json();
+    
+    const required = ['name', 'phone_1', 'district', 'address', 'size', 'shipping'];
+    const missingFields = required.filter(field => !orderData[field]);
+    
+    if (missingFields.length > 0) {
+      return NextResponse.json(
+        { 
+          success: false,
+          message: `Missing required fields: ${missingFields.join(', ')}` 
+        },
+        { status: 400 }
+      );
+    }
+
+    const sanitizedData = {
+      name: orderData.name.toString().trim().substring(0, 100),
+      phone_1: orderData.phone_1.toString().trim().substring(0, 20),
+      phone_2: orderData.phone_2 ? orderData.phone_2.toString().trim().substring(0, 20) : undefined,
+      email: orderData.email ? orderData.email.toString().trim().substring(0, 100) : undefined,
+      district: orderData.district.toString().trim().substring(0, 50),
+      address: orderData.address.toString().trim().substring(0, 200),
+      size: orderData.size.toString().trim().substring(0, 20),
+      shipping: orderData.shipping.toString().trim().substring(0, 20),
+      productCount: Math.max(1, Math.min(parseInt(orderData.productCount) || 1, 100)),
+      subtotal: Math.max(0, parseFloat(orderData.subtotal) || 0),
+      shippingCost: Math.max(0, parseFloat(orderData.shippingCost) || 0),
+      totalCost: Math.max(0, parseFloat(orderData.totalCost) || 0),
+      status: 'pending'
     };
 
-    const success = storage.add('orders', orderWithMetadata);
-    
-    if (success) {
-      // Notify all connected clients about new order
-      clients.forEach(client => {
-        client.controller.enqueue(
-          new TextEncoder().encode(
-            `data: ${JSON.stringify({
-              type: 'NEW_ORDER',
-              order: orderWithMetadata
-            })}\n\n`
-          )
-        );
-      });
+    const order = new Order(sanitizedData);
+    await order.save();
 
-      return Response.json({ 
-        success: true, 
-        message: 'Order placed successfully!',
-        orderId: orderWithMetadata.orderId
+    try {
+      await pusherServer.trigger('admin-dashboard', 'new-order', {
+        order: order.toObject(),
+        timestamp: new Date().toISOString()
       });
-    } else {
-      return Response.json({ 
-        success: false, 
-        message: 'Failed to place order' 
-      }, { status: 500 });
+    } catch (pusherError) {
+      console.error('Pusher notification failed:', pusherError);
     }
+
+    return NextResponse.json(
+      { 
+        success: true,
+        message: 'Order created successfully', 
+        order 
+      },
+      { status: 201 }
+    );
   } catch (error) {
-    return Response.json({ error: 'Failed to create order' }, { status: 500 });
+    console.error('Error creating order:', error);
+    return NextResponse.json(
+      { 
+        success: false,
+        message: 'Error creating order'
+      },
+      { status: 500 }
+    );
   }
 }
 
+// PUT - Update order status
 export async function PUT(request) {
   try {
-    const { id, ...updates } = await request.json();
-    const updateSuccess = storage.update('orders', id, updates);
+    await connectDB();
     
-    if (updateSuccess) {
-      return Response.json({ success: true, message: 'Order updated successfully' });
-    } else {
-      return Response.json({ success: false, message: 'Failed to update order' }, { status: 500 });
+    const updateData = await request.json();
+    
+    const { id, _id, ...otherUpdates } = updateData;
+    
+    // Use _id for MongoDB (primary key)
+    const orderId = _id || id;
+    
+    if (!orderId) {
+      return NextResponse.json(
+        { 
+          success: false,
+          message: 'Order ID is required' 
+        },
+        { status: 400 }
+      );
     }
+
+    // Only allow specific fields to be updated for security
+    const allowedUpdates = ['status', 'notes', 'trackingNumber'];
+    const filteredUpdates = {};
+    
+    Object.keys(otherUpdates).forEach(key => {
+      if (allowedUpdates.includes(key)) {
+        filteredUpdates[key] = otherUpdates[key];
+      }
+    });
+
+    // Add updatedAt timestamp
+    filteredUpdates.updatedAt = new Date();
+
+    const order = await Order.findByIdAndUpdate(
+      orderId,
+      filteredUpdates,
+      { 
+        new: true, 
+        runValidators: true 
+      }
+    );
+
+    if (!order) {
+      return NextResponse.json(
+        { 
+          success: false,
+          message: 'Order not found' 
+        },
+        { status: 404 }
+      );
+    }
+
+    // Notify about order update
+    try {
+      await pusherServer.trigger('admin-dashboard', 'order-updated', {
+        order: order.toObject(),
+        message: `Order ${order.orderNumber} status updated to ${order.status}`,
+        timestamp: new Date().toISOString()
+      });
+    } catch (pusherError) {
+      console.error('Pusher notification failed:', pusherError);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Order updated successfully',
+      order
+    });
   } catch (error) {
-    return Response.json({ error: 'Failed to update order' }, { status: 500 });
+    console.error('Error updating order:', error);
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => err.message);
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Validation failed',
+          errors
+        },
+        { status: 400 }
+      );
+    }
+
+    // Handle cast errors (invalid ID format)
+    if (error.name === 'CastError') {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Invalid order ID format'
+        },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(
+      { 
+        success: false,
+        message: 'Error updating order'
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    await connectDB();
+    
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json(
+        { 
+          success: false,
+          message: 'Order ID is required' 
+        },
+        { status: 400 }
+      );
+    }
+
+    const order = await Order.findByIdAndDelete(id);
+
+    if (!order) {
+      return NextResponse.json(
+        { 
+          success: false,
+          message: 'Order not found' 
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Order deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting order:', error);
+    return NextResponse.json(
+      { 
+        success: false,
+        message: 'Error deleting order'
+      },
+      { status: 500 }
+    );
   }
 }
