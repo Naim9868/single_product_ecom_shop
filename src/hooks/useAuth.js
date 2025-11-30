@@ -10,40 +10,44 @@ export const AuthProvider = ({ children }) => {
   const router = useRouter();
 
   useEffect(() => {
-    checkAuth();
-  }, []);
+    const initAuth = async () => {
+      try {
+        const token = localStorage.getItem('adminToken');
 
-  const checkAuth = async () => {
-    try {
-      const token = localStorage.getItem('adminToken');
-      
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch('/api/admin/auth/verify', {
-        headers: {
-          'Authorization': `Bearer ${token}`
+        if (!token) {
+          setLoading(false);
+          return;
         }
-      });
 
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-      } else {
+        const response = await fetch('/api/admin/auth/verify', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+        } else {
+          localStorage.removeItem('adminToken');
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
         localStorage.removeItem('adminToken');
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      localStorage.removeItem('adminToken');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    initAuth();
+  }, [])
 
   const login = async (email, password) => {
     try {
+      // console.log('📧 Requesting access for:',{ email, password});
+
       const response = await fetch('/api/admin/auth/login', {
         method: 'POST',
         headers: {
@@ -52,16 +56,25 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
 
-      if (response.ok) {
-        localStorage.setItem('adminToken', data.token);
-        setUser(data.user);
-        return { success: true };
-      } else {
-        return { success: false, error: data.error };
+      console.log('📡 Login response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.log('❌ Login failed:', errorData.error);
+        return { success: false, error: errorData.error };
       }
+
+      const data = await response.json();
+      console.log('✅ Login successful, token received');
+      console.log('📧 Request access response:', data);
+      
+      localStorage.setItem('adminToken', data.token);
+      setUser(data.user);
+      return { success: true };
+      
     } catch (error) {
+      console.error('🚨 Login request failed:', error);
       return { success: false, error: 'Login failed' };
     }
   };
@@ -73,7 +86,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, checkAuth }}>
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -5,7 +5,7 @@ import Order from '@/models/Order';
 import Product from '@/models/Product';
 import { verifyToken } from '@/middleware/auth';
 
-async function handler(req) {
+async function handler(req, res) {
   try {
     await connectDB();
 

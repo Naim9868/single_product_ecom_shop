@@ -10,7 +10,7 @@ export async function POST(req) {
   try {
     await connectDB();
     const { email, password } = await req.json();
-
+    
     // Validate input
     if (!email || !password) {
       return NextResponse.json(

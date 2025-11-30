@@ -128,7 +128,7 @@ export default function OrderForm({
       
       case 'address':
         if (!value.trim()) errors.address = 'Address is required';
-        else if (value.trim().length < 10) errors.address = 'Address must be at least 10 characters';
+        else if (value.trim().length < 5) errors.address = 'Address must be at least 10 characters';
         else delete errors.address;
         break;
       
@@ -346,7 +346,7 @@ export default function OrderForm({
               <motion.div variants={itemAnimation} className="space-y-4">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Phone className="w-4 h-4" />
-                  Phone Numbers *
+                  Phone Numbers(ফোন নাম্বার) *
                 </label>
                 
                 <div className="space-y-3">
@@ -379,7 +379,7 @@ export default function OrderForm({
               <motion.div variants={itemAnimation} className="space-y-4">
                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
                   <Mail className="w-4 h-4" />
-                  Email Address
+                  Email Address(ইমেইল)
                 </label>
                 
                 <div className="space-y-3">
@@ -432,7 +432,7 @@ export default function OrderForm({
                   name="address"
                   value={orderData.address}
                   onChange={handleInputChange}
-                  rows="3"
+                  rows="4"
                   className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all duration-200 resize-none"
                   placeholder="Enter your complete address"
                   required

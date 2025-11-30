@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Order from '@/models/Order';
 import { pusherServer } from '@/lib/pusher';
+import { verifyToken } from '@/middleware/auth';
 
 export async function GET(request) {
   try {
@@ -125,7 +126,7 @@ export async function POST(request) {
 }
 
 // PUT - Update order status
-export async function PUT(request) {
+async function putHandler(request) {
   try {
     await connectDB();
     
@@ -275,3 +276,7 @@ export async function DELETE(request) {
     );
   }
 }
+
+// Apply authentication middleware
+// export const GET = verifyToken(getHandler);
+export const PUT = verifyToken(putHandler);

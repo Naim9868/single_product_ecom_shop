@@ -12,11 +12,19 @@ export default function OrderManager({ orders, setOrders, onRefresh, loading }) 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
       setUpdatingOrderId(orderId);
-      
+      const token = localStorage.getItem('adminToken');
+
+      if (!token) {
+        alert('Please log in again.');
+        window.location.href = '/admin/login';
+        return;
+      }
+
       const response = await fetch('/api/orders', {
         method: 'PUT',
         headers: { 
-          'Content-Type': 'application/json' 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ 
           _id: orderId, 

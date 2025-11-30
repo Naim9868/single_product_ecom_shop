@@ -12,6 +12,7 @@ export default function Dashboard() {
   });
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -20,13 +21,59 @@ export default function Dashboard() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/dashboard');
-      const data = await response.json();
+      setError(null);
       
-      setStats(data.stats);
+      // Get the token from localStorage
+      const token = localStorage.getItem('adminToken');
+      console.log('🔐 Token from localStorage:', token);
+
+      if (!token) {
+        console.log('❌ No token found in localStorage');
+        setError('No authentication token found. Please log in again.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('📡 Making request to /api/dashboard with token...');
+      const response = await fetch('/api/dashboard', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log("Dashboard API response: ", response);
+      console.log('📊 Response status:', response.status);
+      console.log('📊 Response ok:', response.ok);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 401) {
+          setError('Authentication failed. Please log in again.');
+          // Clear invalid token
+          localStorage.removeItem('adminToken');
+          // Redirect to login
+          // window.location.href = '/admin/login';
+          return; 
+        }
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+       console.log('✅ Success response data:', data);
+      // Set the data with proper fallbacks
+      setStats({
+        totalOrders: data.stats?.totalOrders || 0,
+        pendingOrders: data.stats?.pendingOrders || 0,
+        totalRevenue: data.stats?.totalRevenue || 0,
+        productsCount: data.stats?.productsCount || 0,
+        averageOrder: data.stats?.averageOrder || 0
+      });
+      
       setRecentOrders(data.recentOrders || []);
+      
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      setError('Failed to load dashboard data: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -34,17 +81,35 @@ export default function Dashboard() {
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
+      const token = localStorage.getItem('adminToken');
+      
+      if (!token) {
+        alert('Please log in again.');
+        window.location.href = '/admin/login';
+        return;
+      }
+
       const response = await fetch('/api/orders', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ id: orderId, status: newStatus })
       });
 
       if (response.ok) {
         loadDashboardData(); // Reload data
+      } else if (response.status === 401) {
+        alert('Session expired. Please log in again.');
+        localStorage.removeItem('adminToken');
+        window.location.href = '/admin/login';
+      } else {
+        console.error('Failed to update order status');
       }
     } catch (error) {
       console.error('Error updating order status:', error);
+      alert('Network error. Please try again.');
     }
   };
 
@@ -69,6 +134,24 @@ export default function Dashboard() {
       <div className="dashboard p-6">
         <div className="flex justify-center items-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <span className="ml-2 text-gray-600">Loading dashboard...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="text-red-700 font-semibold">Error</div>
+          <div className="text-red-600">{error}</div>
+          <button 
+            onClick={loadDashboardData}
+            className="mt-2 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );

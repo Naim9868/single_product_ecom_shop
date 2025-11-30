@@ -8,7 +8,20 @@ export const verifyToken = (handler) => async (req, res) => {
   await connectDB();
   
   try {
-    const token = req.headers.authorization?.replace('Bearer ', '');
+    const authHeader = req.headers.get('authorization');
+    console.log('🔐 Auth header:', authHeader);
+
+     if (!authHeader) {
+      console.log('❌ No authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Access denied. No token provided.' }),
+        { status: 401 }
+      );
+    }
+
+      const token = authHeader.replace('Bearer ', '');
+      console.log('🔐 Token received:', token ? 'Yes' : 'No');
+      console.log('🔐 JWT_SECRET exists:', !!JWT_SECRET);
 
     if (!token) {
       return new Response(
@@ -18,11 +31,12 @@ export const verifyToken = (handler) => async (req, res) => {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    console.log("decoded token: ", decoded);
+    console.log('✅ Token decoded:', decoded);
     
     // Check if user still exists
     const user = await User.findById(decoded.userId);
     if (!user) {
+      console.log('❌ User not found for ID:', decoded.userId);
       return new Response(
         JSON.stringify({ error: 'User not found.' }),
         { status: 401 }
@@ -45,9 +59,12 @@ export const verifyToken = (handler) => async (req, res) => {
       );
     }
 
+    console.log('✅ User authenticated:', user.email);
+    
     // Add user to request object
     req.user = user;
     return handler(req, res);
+    
   } catch (error) {
     console.error('Auth error:', error);
     return new Response(
