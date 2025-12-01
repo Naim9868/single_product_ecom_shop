@@ -25,7 +25,7 @@ export default function Dashboard() {
       
       // Get the token from localStorage
       const token = localStorage.getItem('adminToken');
-      console.log('🔐 Token from localStorage:', token);
+      // console.log('🔐 Token from localStorage:', token);
 
       if (!token) {
         console.log('❌ No token found in localStorage');
@@ -34,16 +34,16 @@ export default function Dashboard() {
         return;
       }
 
-      console.log('📡 Making request to /api/dashboard with token...');
+      // console.log('📡 Making request to /api/dashboard with token...');
       const response = await fetch('/api/dashboard', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      console.log("Dashboard API response: ", response);
-      console.log('📊 Response status:', response.status);
-      console.log('📊 Response ok:', response.ok);
+      // console.log("Dashboard API response: ", response);
+      // console.log('📊 Response status:', response.status);
+      // console.log('📊 Response ok:', response.ok);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -59,7 +59,9 @@ export default function Dashboard() {
       }
       
       const data = await response.json();
-       console.log('✅ Success response data:', data);
+      //  console.log('✅ Success response data:', data);
+
+      
       // Set the data with proper fallbacks
       setStats({
         totalOrders: data.stats?.totalOrders || 0,

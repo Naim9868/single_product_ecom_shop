@@ -9,10 +9,8 @@ export const verifyToken = (handler) => async (req, res) => {
   
   try {
     const authHeader = req.headers.get('authorization');
-    console.log('🔐 Auth header:', authHeader);
 
      if (!authHeader) {
-      console.log('❌ No authorization header');
       return new Response(
         JSON.stringify({ error: 'Access denied. No token provided.' }),
         { status: 401 }
@@ -20,8 +18,8 @@ export const verifyToken = (handler) => async (req, res) => {
     }
 
       const token = authHeader.replace('Bearer ', '');
-      console.log('🔐 Token received:', token ? 'Yes' : 'No');
-      console.log('🔐 JWT_SECRET exists:', !!JWT_SECRET);
+      // console.log('🔐 Token received:', token ? 'Yes' : 'No');
+      // console.log('🔐 JWT_SECRET exists:', !!JWT_SECRET);
 
     if (!token) {
       return new Response(
@@ -31,7 +29,7 @@ export const verifyToken = (handler) => async (req, res) => {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    console.log('✅ Token decoded:', decoded);
+    // console.log('✅ Token decoded:', decoded);
     
     // Check if user still exists
     const user = await User.findById(decoded.userId);
@@ -59,7 +57,7 @@ export const verifyToken = (handler) => async (req, res) => {
       );
     }
 
-    console.log('✅ User authenticated:', user.email);
+    // console.log('✅ User authenticated:', user.email);
     
     // Add user to request object
     req.user = user;

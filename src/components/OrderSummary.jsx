@@ -107,7 +107,7 @@ export default function OrderSummary({
         <div className="mt-4 text-center">
           <div className="inline-flex items-center gap-2 text-xs text-gray-500 bg-gray-100 px-3 py-2 rounded-full">
             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            Secure payment • 100% protected
+             100% trusted
           </div>
         </div>
       </motion.section>

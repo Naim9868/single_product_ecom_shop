@@ -18,7 +18,7 @@ export async function GET(req) {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    console.log("token for verification: ", token);
+    // console.log("token for verification: ", token);
     
     const decoded = jwt.verify(token, JWT_SECRET);
     const user = await User.findById(decoded.userId);
@@ -37,7 +37,7 @@ export async function GET(req) {
       );
     }
 
-    console.log("verified user: ", user);
+    // console.log("verified user: ", user);
     
     return NextResponse.json({
       user: {

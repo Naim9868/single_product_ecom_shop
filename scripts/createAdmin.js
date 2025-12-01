@@ -12,6 +12,8 @@ if (!MONGODB_URI) {
   process.exit(1);
 }
 
+
+// this is creating admin 
 async function createAdmin() {
   const client = new MongoClient(MONGODB_URI);
   

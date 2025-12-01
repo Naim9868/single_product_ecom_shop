@@ -57,7 +57,7 @@ export const AuthProvider = ({ children }) => {
       });
 
 
-      console.log('📡 Login response status:', response.status);
+      // console.log('📡 Login response status:', response.status);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -66,8 +66,8 @@ export const AuthProvider = ({ children }) => {
       }
 
       const data = await response.json();
-      console.log('✅ Login successful, token received');
-      console.log('📧 Request access response:', data);
+      // console.log('✅ Login successful, token received');
+      // console.log('📧 Request access response:', data);
       
       localStorage.setItem('adminToken', data.token);
       setUser(data.user);

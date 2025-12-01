@@ -35,7 +35,7 @@ export async function DELETE(request, { params }) {
     
     const { id } = await params;
     const order = await Order.findByIdAndDelete(id);
-    console.log(id);
+    // console.log(id);
     if (!order) {
       return NextResponse.json(
         { message: 'Order not found' },

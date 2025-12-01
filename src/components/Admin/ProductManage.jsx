@@ -200,11 +200,11 @@ const selectProduct = async (productId) => {
   }
 };
 
-useEffect(() => {
-  if (selectedProductId) {
-    console.log('Selected product ID set to:', selectedProductId);
-  }
-}, [selectedProductId]);
+// useEffect(() => {
+//   if (selectedProductId) {
+//     console.log('Selected product ID set to:', selectedProductId);
+//   }
+// }, [selectedProductId]);
 
   // Delete product
   const deleteProduct = async (id) => {
